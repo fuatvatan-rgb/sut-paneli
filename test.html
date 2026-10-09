@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Excel Test</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body style="font-family:Arial;padding:20px">
+  <h3>Excel okuma testi</h3>
+  <input type="file" id="dosya" accept=".xlsx,.xls,.csv">
+  <p id="durum">Dosya seçilmedi.</p>
+  <div id="ozet" style="margin-top:10px"></div>
+
+<script>
+// CDN yüklendi mi?
+window.addEventListener('load', () => {
+  if (typeof XLSX === 'undefined') {
+    document.getElementById('durum').textContent =
+      'HATA: XLSX kütüphanesi yüklenmedi (CDN sorunu).';
+    document.getElementById('durum').style.color = 'red';
+  } else {
+    document.getElementById('durum').textContent = 'Hazır. Bir Excel dosyası seç.';
+    document.getElementById('durum').style.color = 'green';
+  }
+});
+
+document.getElementById('dosya').addEventListener('change', function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('ozet').textContent = 'Okunuyor...';
+
+  const reader = new FileReader();
+  reader.onload = function (ev) {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      document.getElementById('ozet').innerHTML =
+        '<b>Başarılı.</b><br>Sayfa: ' + wb.SheetNames.join(', ') +
+        '<br>Satır sayısı: ' + rows.length +
+        '<br>İlk satır: ' + JSON.stringify(rows[0]);
+      document.getElementById('ozet').style.color = 'green';
+    } catch (err) {
+      document.getElementById('ozet').innerHTML =
+        '<b>PARSE HATASI:</b> ' + err.message;
+      document.getElementById('ozet').style.color = 'red';
+    }
+  };
+  reader.onerror = function () {
+    document.getElementById('ozet').textContent = 'Dosya okunamadı (FileReader hatası).';
+    document.getElementById('ozet').style.color = 'red';
+  };
+  reader.readAsArrayBuffer(file);
+});
+</script>
+</body>
+</html>
