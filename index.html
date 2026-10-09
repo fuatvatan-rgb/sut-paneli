@@ -6,6 +6,7 @@
 <title>TEKSÜT · Süt Ürünleri Yönetim Paneli</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
+  (()=>{const o=Number.prototype.toLocaleString;Number.prototype.toLocaleString=function(l,opt){if(opt){if(opt.maximumFractionDigits!=null)opt.maximumFractionDigits=Math.max(0,Math.min(20,opt.maximumFractionDigits|0));if(opt.minimumFractionDigits!=null)opt.minimumFractionDigits=Math.max(0,Math.min(20,opt.minimumFractionDigits|0));}return o.call(this,l,opt);};})();
 /* Yedek kaynak: ilk CDN engellendiyse buradan dener */
 if (typeof XLSX === "undefined") {
   document.write('<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');
