@@ -5,8 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TEKSÜT · Süt Ürünleri Yönetim Paneli</title>
 
-<!-- Hata yakalayıcı: kod bir yerde kırılırsa beyaz ekran yerine kırmızı kutu çıkar -->
+<!-- Logo yüklenemezse yazı logoya döner (fonksiyon, logodan önce tanımlı) -->
 <script>
+function logoYedek() {
+  var g = document.getElementById("kurumsal-logo");
+  var y = document.getElementById("logo-yedek");
+  if (g) { g.style.display = "none"; }
+  if (y) { y.hidden = false; }
+}
 window.addEventListener("error", function (olay) {
   var kutu = document.getElementById("hata-kutusu");
   if (kutu) {
@@ -32,7 +38,8 @@ window.addEventListener("error", function (olay) {
 body{margin:0;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:var(--zemin);color:var(--metin)}
 
 .ust{background:var(--kirmizi);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 22px;flex-wrap:wrap}
-.marka{display:flex;align-items:center;gap:16px}
+.marka{display:flex;align-items:center;gap:18px}
+.kurumsal-logo{height:46px;width:auto;background:#fff;border-radius:6px;padding:6px 10px;display:block}
 .logo{background:#fff;color:var(--kirmizi);font-weight:800;font-size:24px;letter-spacing:-1px;padding:6px 14px;border-radius:6px;line-height:1.1}
 .baslik h1{margin:0;font-size:19px;font-weight:600}
 .baslik p{margin:3px 0 0;font-size:12px;opacity:.85}
@@ -50,6 +57,15 @@ h2{font-size:17px;margin:0 0 4px;color:var(--kirmizi-koyu)}
 .ipucu{font-size:13px;color:#6b5f60;margin:0 0 16px}
 .bos{background:#fff;border:1px solid var(--cizgi);border-radius:10px;padding:44px 20px;text-align:center;color:#6b5f60;font-size:14px}
 
+/* ---- Vitrin bandı: tanıtım filmi + kurumsal künye ---- */
+.vitrin{display:grid;grid-template-columns:minmax(280px,1fr) minmax(260px,0.85fr);gap:22px;background:#fff;border:1px solid var(--cizgi);border-radius:12px;overflow:hidden;margin-bottom:18px}
+.vitrin-video{width:100%;height:100%;min-height:230px;background:#1a1415;display:block;object-fit:cover}
+.vitrin-metin{padding:22px 24px 22px 0}
+.vitrin-metin h3{margin:0 0 8px;font-size:16px;color:var(--kirmizi-koyu)}
+.vitrin-metin p{margin:0 0 10px;font-size:13px;line-height:1.6;color:#4a4041}
+.vitrin-metin ul{margin:0;padding-left:18px;font-size:13px;line-height:1.75;color:#4a4041}
+@media(max-width:820px){.vitrin{grid-template-columns:1fr}.vitrin-metin{padding:0 20px 22px}}
+
 .damla{border:2px dashed var(--cizgi);border-radius:12px;background:#fff;padding:26px;text-align:center;cursor:pointer;transition:.15s}
 .damla.uzerinde{border-color:var(--kirmizi);background:var(--kirmizi-acik)}
 .damla strong{display:block;font-size:15px;margin-bottom:5px;color:var(--kirmizi-koyu)}
@@ -65,6 +81,10 @@ h2{font-size:17px;margin:0 0 4px;color:var(--kirmizi-koyu)}
 .kart em{font-style:normal;font-size:20px;font-weight:700;color:var(--kirmizi-koyu)}
 .kart u{text-decoration:none;font-size:11px;color:#6b5f60;display:block;margin-top:2px}
 .kart.uyari{border-left-color:#d98300;background:#fffaf0}
+
+.cins-kap{background:#fff;border:1px solid var(--cizgi);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+.cins-kap b{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:#6b5f60}
+.cins-kap table{margin-top:8px}
 
 .tablo-kap{overflow:auto;max-height:560px;border:1px solid var(--cizgi);border-radius:8px;background:#fff;margin-top:8px}
 table{border-collapse:collapse;width:100%;font-size:12.5px;white-space:nowrap}
@@ -86,8 +106,9 @@ td.durum.uygun{color:#3f7a45;font-weight:400}
 <!-- ================= BLOK: UST BASLIK ================= -->
 <header class="ust">
   <div class="marka">
-    <!-- Gerçek logo: bu kutunun içine  <img src="logo.png" alt="TEKSÜT">  koyun -->
-    <div class="logo">teksüt</div>
+    <!-- Gerçek logo: depodaki logo.png çağrılır; yoksa yazı logoya döner -->
+    <img id="kurumsal-logo" class="kurumsal-logo" src="logo.png" alt="TEKSÜT" onerror="logoYedek()">
+    <div id="logo-yedek" class="logo" hidden>teksüt</div>
     <div class="baslik">
       <h1>Süt Ürünleri Yönetim Paneli</h1>
       <p>Veri kaynağı: Excel (aşama 1) &nbsp;·&nbsp; Hedef: Netsis (aşama 2)</p>
@@ -123,6 +144,29 @@ td.durum.uygun{color:#3f7a45;font-weight:400}
 
   <!-- ================= BLOK: SUT_ALIM ================= -->
   <section id="panel-SutAlim" class="panel aktif">
+
+    <!-- Vitrin: tanıtım filmi + kurumsal künye -->
+    <div class="vitrin">
+      <video class="vitrin-video" controls muted playsinline preload="metadata" poster="tanitim-kapak.jpg">
+        <source src="tanitim.mp4" type="video/mp4">
+        Tarayıcınız video oynatmayı desteklemiyor.
+      </video>
+      <div class="vitrin-metin">
+        <h3>1956'dan beri sütün iyi hâli</h3>
+        <p>
+          Teksüt, 1956 yılında Balıkesir Gönen'de kuruldu. Yerel ölçekte beyaz peynirle başlayan yolculuk,
+          bugün 80.000 m² üzerine kurulu modern fabrikada sürüyor.
+        </p>
+        <ul>
+          <li>Günde <strong>600 ton</strong> süt işleme kapasitesi</li>
+          <li><strong>27.000 m²</strong> kapalı üretim alanı — Gönen / Balıkesir</li>
+          <li>Beyaz peynirden UHT süte, kaşardan ayrana geniş ürün ailesi</li>
+          <li>Kalite: uluslararası standartlar + müşteri beklentisi</li>
+        </ul>
+      </div>
+    </div>
+    <!-- /Vitrin -->
+
     <h2>Süt Alım · Kantar Verisi</h2>
     <p class="ipucu">
       Günlük süt alım kantarı Excel dosyanızı (veya CSV) buraya bırakın. Kolon sırası önemli değil;
@@ -388,12 +432,12 @@ function bicimle(n, basamak) {
    KALİTE UYARI KURALLARI — sınırlar buradan değiştirilir
    ===================================================================== */
 var KURALLAR = [
-  { ad: "Sıcaklık",     kosul: function (s) { return s.sicaklik !== null && s.sicaklik > 8; } },
-  { ad: "pH",           kosul: function (s) { return s.ph !== null && (s.ph < 6.5 || s.ph > 6.8); } },
-  { ad: "Alkol",        kosul: function (s) { return s.alkol.indexOf("+") !== -1; } },
-  { ad: "Somatik",      kosul: function (s) { return s.somatik !== null && s.somatik > 400000; } },
-  { ad: "Donma noktası",kosul: function (s) { return s.donma !== null && s.donma > -0.505; } },
-  { ad: "Su",           kosul: function (s) { return s.su !== null && s.su > 0; } }
+  { ad: "Sıcaklık",      kosul: function (s) { return s.sicaklik !== null && s.sicaklik > 8; } },
+  { ad: "pH",            kosul: function (s) { return s.ph !== null && (s.ph < 6.5 || s.ph > 6.8); } },
+  { ad: "Alkol",         kosul: function (s) { return s.alkol.indexOf("+") !== -1; } },
+  { ad: "Somatik",       kosul: function (s) { return s.somatik !== null && s.somatik > 400000; } },
+  { ad: "Donma noktası", kosul: function (s) { return s.donma !== null && s.donma > -0.505; } },
+  { ad: "Su",            kosul: function (s) { return s.su !== null && s.su > 0; } }
 ];
 
 /* =====================================================================
@@ -405,7 +449,7 @@ function ciz(tablo, dosyaAdi) {
   var kolon = {
     plaka:    kolonBul(basliklar, ["plaka"]),
     kantar:   kolonBul(basliklar, ["kantar"]),
-    sicaklik: kolonBul(basliklar, ["sıcaklık", "sicaklik"]),
+    sicaklik: kolonBul(basliklar, ["süt sıcaklık", "sıcaklık", "sicaklik", "sıcaklik"]),
     ph:       kolonBul(basliklar, ["ph"]),
     yag:      kolonBul(basliklar, ["yağ", "yag"]),
     protein:  kolonBul(basliklar, ["protein"]),
@@ -416,7 +460,9 @@ function ciz(tablo, dosyaAdi) {
     somatik:  kolonBul(basliklar, ["somatik"]),
     yogunluk: kolonBul(basliklar, ["yoğunluk", "yogunluk"]),
     su:       kolonBul(basliklar, ["su"]),
-    alkol:    kolonBul(basliklar, ["alkol"])
+    alkol:    kolonBul(basliklar, ["alkol"]),
+    cins:     kolonBul(basliklar, ["süt cins", "süt cinsi", "cins"]),
+    sefer:    kolonBul(basliklar, ["sefer"])
   };
 
   var satirlar = tablo.govde.map(function (kayit) {
@@ -426,6 +472,8 @@ function ciz(tablo, dosyaAdi) {
     var s = {
       kayit: kayit,
       plaka: metin(kolon.plaka),
+      cins: metin(kolon.cins),
+      sefer: metin(kolon.sefer),
       kantar: sayi(kolon.kantar),
       sicaklik: sayi(kolon.sicaklik),
       ph: sayi(kolon.ph),
@@ -453,20 +501,19 @@ function ciz(tablo, dosyaAdi) {
   var toplamKantar = 0;
   satirlar.forEach(function (s) { toplamKantar += (s.kantar ?? 0); });
 
+  var uyariSayisi = satirlar.filter(function (s) { return s.uyariListesi.length > 0; }).length;
+
   var kartlar = [
-    { ad: "Toplam sefer",     deger: new Intl.NumberFormat("tr-TR").format(toplamSefer), alt: "dosyadaki kayıt sayısı" },
-    { ad: "Toplam kantar",    deger: bicimle(Math.round(toplamKantar), 0) + " kg", alt: bicimle(toplamKantar / 1000, 2) + " ton" },
-    { ad: "Ort. sıcaklık",    deger: bicimle(ortalama(satirlar.map(function (s) { return s.sicaklik; })), 1) + " °C", alt: "sınır: 8 °C" },
-    { ad: "Ort. pH",          deger: bicimle(ortalama(satirlar.map(function (s) { return s.ph; })), 2), alt: "hedef: 6,5 – 6,8" },
-    { ad: "Ort. yağ",         deger: bicimle(ortalama(satirlar.map(function (s) { return s.yag; })), 2) + " %", alt: "" },
-    { ad: "Ort. protein",     deger: bicimle(ortalama(satirlar.map(function (s) { return s.protein; })), 2) + " %", alt: "" },
-    { ad: "Ort. laktoz",      deger: bicimle(ortalama(satirlar.map(function (s) { return s.laktoz; })), 2) + " %", alt: "" },
-    { ad: "Ort. TKM",         deger: bicimle(ortalama(satirlar.map(function (s) { return s.tkm; })), 2) + " %", alt: "toplam kuru madde" },
-    { ad: "Ort. somatik",     deger: bicimle(ortalama(satirlar.map(function (s) { return s.somatik; })), 0), alt: "sınır: 400.000" },
-    { ad: "Ort. donma nok.",  deger: bicimle(ortalama(satirlar.map(function (s) { return s.donma; })), 3) + " °C", alt: "sınır: ≤ -0,505" },
-    { ad: "Uyarılı sefer",    deger: new Intl.NumberFormat("tr-TR").format(satirlar.filter(function (s) { return s.uyariListesi.length > 0; }).length),
-      alt: "kural dışı değer",
-      sinif: satirlar.filter(function (s) { return s.uyariListesi.length > 0; }).length > 0 ? "uyari" : "" }
+    { ad: "Toplam sefer",    deger: new Intl.NumberFormat("tr-TR").format(toplamSefer), alt: "dosyadaki kayıt sayısı" },
+    { ad: "Toplam kantar",   deger: bicimle(Math.round(toplamKantar), 0) + " kg", alt: bicimle(toplamKantar / 1000, 2) + " ton" },
+    { ad: "Ort. sıcaklık",   deger: bicimle(ortalama(satirlar.map(function (s) { return s.sicaklik; })), 1) + " °C", alt: "sınır: 8 °C" },
+    { ad: "Ort. pH",         deger: bicimle(ortalama(satirlar.map(function (s) { return s.ph; })), 2), alt: "hedef: 6,5 – 6,8" },
+    { ad: "Ort. yağ",        deger: bicimle(ortalama(satirlar.map(function (s) { return s.yag; })), 2) + " %", alt: "" },
+    { ad: "Ort. protein",    deger: bicimle(ortalama(satirlar.map(function (s) { return s.protein; })), 2) + " %", alt: "" },
+    { ad: "Ort. TKM",        deger: bicimle(ortalama(satirlar.map(function (s) { return s.tkm; })), 2) + " %", alt: "toplam kuru madde" },
+    { ad: "Ort. somatik",    deger: bicimle(ortalama(satirlar.map(function (s) { return s.somatik; })), 0), alt: "sınır: 400.000" },
+    { ad: "Ort. donma nok.", deger: bicimle(ortalama(satirlar.map(function (s) { return s.donma; })), 3) + " °C", alt: "sınır: ≤ -0,505" },
+    { ad: "Uyarılı sefer",   deger: new Intl.NumberFormat("tr-TR").format(uyariSayisi), alt: "kural dışı değer", sinif: uyariSayisi > 0 ? "uyari" : "" }
   ];
 
   var kartHtml = kartlar.map(function (kart) {
@@ -476,6 +523,28 @@ function ciz(tablo, dosyaAdi) {
       (kart.alt ? "<u>" + kart.alt + "</u>" : "") +
       "</div>";
   }).join("");
+
+  /* Süt cinsine göre dağılım */
+  var cinsHtml = "";
+  if (kolon.cins) {
+    var gruplar = {};
+    satirlar.forEach(function (s) {
+      var anahtar = s.cins === "" ? "Belirtilmemiş" : s.cins;
+      if (!gruplar[anahtar]) { gruplar[anahtar] = { sefer: 0, kg: 0 }; }
+      gruplar[anahtar].sefer += 1;
+      gruplar[anahtar].kg += (s.kantar ?? 0);
+    });
+
+    var cinsSatirlari = Object.keys(gruplar).map(function (ad) {
+      var g = gruplar[ad];
+      return "<tr><td>" + kacisYap(ad) + "</td><td>" + new Intl.NumberFormat("tr-TR").format(g.sefer) + "</td>" +
+        "<td>" + bicimle(Math.round(g.kg), 0) + " kg</td></tr>";
+    }).join("");
+
+    cinsHtml = '<div class="cins-kap"><b>Süt cinsine göre dağılım</b>' +
+      "<table><thead><tr><th>Süt cinsi</th><th>Sefer</th><th>Kantar</th></tr></thead><tbody>" +
+      cinsSatirlari + "</tbody></table></div>";
+  }
 
   var kuralOzeti = KURALLAR.map(function (kural) {
     var sayi = satirlar.filter(function (s) { return s.uyariListesi.indexOf(kural.ad) !== -1; }).length;
@@ -503,6 +572,7 @@ function ciz(tablo, dosyaAdi) {
       '<button type="button" class="dugme ikincil" id="temizle">Listeyi temizle</button>' +
     "</div>" +
     '<div class="ozet">' + kartHtml + "</div>" +
+    cinsHtml +
     '<p class="ipucu">Uyarı özeti &nbsp;→&nbsp; ' + kuralOzeti + "</p>" +
     '<div class="tablo-kap"><table><thead><tr>' + baslikHtml + "</tr></thead><tbody>" + govdeHtml + "</tbody></table></div>" +
     (satirlar.length > 1000 ? '<p class="ipucu">İlk 1000 satır gösteriliyor (toplam ' + satirlar.length + ").</p>" : "");
