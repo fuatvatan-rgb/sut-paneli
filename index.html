@@ -1,70 +1,654 @@
-// Sayı çevirici — "1.234,56" ve "1234,56" biçimlerini de tanır
-function sayi(v) {
-  if (v === null || v === undefined || v === "") return NaN;
-  let s = String(v).trim();
-  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
-  return parseFloat(s);
-}
-
-// Ağırlıklı ortalaması alınacak analiz kolonları
-const ANALIZ = ["Sıcaklık", "Ph", "Sh", "Yağ", "Klasik Yöntem", "Protein", "Laktoz",
-                "TKM", "YKM", "Donma Noktası", "Somatik", "Yoğunluk", "Su",
-                "Laktam", "Alkol", "Koku", "Test"];
-
-// Aynı seferi tanımlayan kolonlar — Excel'inde adları farklıysa burayı düzelt
-function seferKey(r) {
-  return [r["Plaka"], r["Tarih"], r["Saat"], r["Sefer Adı"], r["Mühür No"]].join("|");
-}
-
-function seferBirlestir(satirlar) {
-  const gruplar = new Map();
-
-  for (const r of satirlar) {
-    const k = seferKey(r);
-    if (!gruplar.has(k)) gruplar.set(k, []);
-    gruplar.get(k).push(r);
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TEKSÜT · Süt Ürünleri Yönetim Paneli</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --red:#a80d1e; --red-dark:#7d0916; --red-soft:#c62b3a;
+    --ink:#1c1c1c; --muted:#6b7280; --line:#e5e7eb;
+    --bg:#f4f5f7; --card:#ffffff;
   }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:linear-gradient(180deg,var(--red) 0%,var(--red-dark) 100%);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header img{height:34px;display:block}
+  #logoText{font-weight:800;font-size:24px;letter-spacing:-.5px;display:none}
+  .h-txt h1{margin:0;font-size:19px;font-weight:700}
+  .h-txt p{margin:2px 0 0;font-size:12.5px;opacity:.85}
+  .h-right{margin-left:auto;text-align:right;font-size:12.5px;line-height:1.6;opacity:.95}
+  main{max-width:1400px;margin:0 auto;padding:22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+  .mod{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 16px;cursor:pointer;transition:.15s;text-align:left;font:inherit}
+  .mod:hover{border-color:var(--red);box-shadow:0 6px 18px rgba(168,13,30,.13);transform:translateY(-2px)}
+  .mod b{display:block;font-size:15px;margin-bottom:5px}
+  .mod span{font-size:12px;color:var(--muted)}
+  .mod.active{border-left:4px solid var(--red)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .card h2{margin:0 0 4px;font-size:17px}
+  .card h3{margin:18px 0 8px;font-size:14px;color:var(--red-dark)}
+  .sub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button.btn{background:var(--red);color:#fff;border:0;border-radius:8px;padding:9px 15px;font:inherit;font-weight:600;cursor:pointer}
+  button.btn:hover{background:var(--red-dark)}
+  button.ghost{background:#fff;color:var(--red);border:1px solid var(--red)}
+  button.ghost:hover{background:#fdf2f3}
+  .drop{border:2px dashed #cfd4dc;border-radius:12px;padding:26px;text-align:center;color:var(--muted);cursor:pointer;background:#fafbfc}
+  .drop.over{border-color:var(--red);background:#fdf2f3;color:var(--red-dark)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:4px 0 6px}
+  .kpi{background:#fafbfc;border:1px solid var(--line);border-radius:10px;padding:12px}
+  .kpi b{display:block;font-size:20px;color:var(--red-dark)}
+  .kpi span{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .scroll{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;font-size:12.5px;white-space:nowrap;width:100%}
+  th,td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:left}
+  th{background:#f3f4f6;position:sticky;top:0;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;color:#4b5563}
+  tr:hover td{background:#fdf7f8}
+  .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .tab{padding:8px 14px;border:1px solid var(--line);background:#fff;border-radius:999px;cursor:pointer;font:inherit;font-size:13px}
+  .tab.on{background:var(--red);color:#fff;border-color:var(--red);font-weight:600}
+  .hidden{display:none}
+  .note{background:#fff8e6;border:1px solid #f0dca8;border-radius:10px;padding:12px 14px;font-size:13px;color:#6b5300}
+  .placeholder{text-align:center;padding:50px 20px;color:var(--muted)}
+  .placeholder b{display:block;font-size:17px;color:var(--ink);margin-bottom:6px}
+  #toast{position:fixed;right:20px;bottom:20px;background:#111;color:#fff;padding:12px 16px;border-radius:10px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none;max-width:340px}
+  #toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <img id="logoImg" src="logo.png" alt="Teksüt" onerror="this.style.display='none';document.getElementById('logoText').style.display='inline-block'">
+  <span id="logoText">teksüt</span>
+  <div class="h-txt">
+    <h1>Süt Ürünleri Yönetim Paneli</h1>
+    <p>Veri kaynağı: Excel (aşama 1) &nbsp;|&nbsp; Hedef: Netsis (aşama 2)</p>
+  </div>
+  <div class="h-right">
+    <div>İyi Olan Tek tür!</div>
+    <div><span id="modCount">16</span> modül · <b>Süt Alım aktif</b></div>
+  </div>
+</header>
+
+<main>
+  <!-- ================= ANA MENÜ ================= -->
+  <section id="menu">
+    <div class="grid" id="menuGrid"></div>
+  </section>
+
+  <!-- ================= SÜT ALIM ================= -->
+  <section id="panel" class="hidden">
+
+    <!-- Süt Alım -->
+    <div id="p-sut" class="pane">
+      <div class="card">
+        <h2>Süt Alım · Tanker Kantar</h2>
+        <p class="sub">Günlük Excel dosyasını yükleyin. Aynı sefer tekrar yüklenirse güncellenir, kopya oluşmaz. Miktar sefer başına bir kez; analizler gözlerin ortalaması.</p>
+        <div class="drop" id="drop">
+          <b>Excel dosyasını buraya sürükleyin</b><br>
+          veya tıklayıp seçin (.xlsx / .xls / .csv)
+          <input type="file" id="file" accept=".xlsx,.xls,.csv" class="hidden">
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn ghost" id="btnOzet">Özetleri Yenile</button>
+          <button class="btn ghost" id="btnYedek">Tüm Veriyi CSV İndir (yedek)</button>
+          <button class="btn ghost" id="btnTemizle">Kayıtları Temizle</button>
+        </div>
+        <p class="sub" id="storeInfo" style="margin-top:12px"></p>
+      </div>
+
+      <div class="card">
+        <h3>Özet Göstergeler (tüm veriler)</h3>
+        <div class="kpis" id="kpis"></div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <h3 style="margin:0">Sefer Listesi</h3>
+          <input id="ara" placeholder="Plaka / sefer adı ara…" style="margin-left:auto;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;min-width:220px">
+        </div>
+        <p class="sub">Her satır bir tanker seferidir. “Göz” kaç gözün birleştiğini gösterir.</p>
+        <div class="scroll"><table id="tblSefer"></table></div>
+      </div>
+
+      <div class="card">
+        <h3>Raporlar</h3>
+        <div class="tabs">
+          <button class="tab on" data-tip="yil">Yıllık</button>
+          <button class="tab" data-tip="ay">Aylık</button>
+          <button class="tab" data-tip="hafta">Haftalık</button>
+          <button class="btn ghost" id="btnCsvRapor" style="margin-left:auto">Bu Raporu CSV İndir</button>
+        </div>
+        <p class="sub">Miktar = seferlerin miktar toplamı. Analizler = miktar ağırlıklı ortalama.</p>
+        <div class="scroll"><table id="tblRapor"></table></div>
+      </div>
+    </div>
+
+    <!-- Diğer modüller için yer tutucu -->
+    <div id="p-bos" class="card hidden">
+      <div class="placeholder">
+        <b id="phTitle">—</b>
+        Bu modül yapım aşamasında. Şu an aktif olan tek modül <b style="display:inline">Süt Alım</b>.<br>
+        Hedef veri kaynağı: Netsis (aşama 2).
+        <div style="margin-top:18px"><button class="btn" id="btnGeri">← Ana Menü</button></div>
+      </div>
+    </div>
+
+    <div class="row"><button class="btn" id="btnAna">← Ana Menü</button></div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   TEKSÜT · Süt Ürünleri Yönetim Paneli  (tek dosya)
+   ============================================================ */
+
+/* ---------- 1. MODÜLLER (16) ---------- */
+const MODULLER = [
+  {ad:"Süt Alım",            alt:"Tanker kantar · Excel",      aktif:true},
+  {ad:"Üretim",              alt:"Parti / reçete takibi"},
+  {ad:"Planlama (MRP)",      alt:"İhtiyaç & üretim planı"},
+  {ad:"Satınalma",           alt:"Talep · sipariş · tedarikçi"},
+  {ad:"Kalite",              alt:"Analiz · uygunsuzluk"},
+  {ad:"Bakım",               alt:"Periyodik · arıza"},
+  {ad:"Makine Performansı",  alt:"OEE · duruş · verim"},
+  {ad:"Depo & Stok",         alt:"Hammadde · mamul"},
+  {ad:"Sevkiyat",            alt:"Araç · irsaliye"},
+  {ad:"Satış",               alt:"Müşteri · ciro"},
+  {ad:"İade",                alt:"İade nedeni · oran"},
+  {ad:"Hurda & Fire",        alt:"Kayıp · neden analizi"},
+  {ad:"Maliyet",             alt:"Birim maliyet · sapma"},
+  {ad:"KPI & Raporlar",      alt:"Gösterge paneli"},
+  {ad:"Enerji & Su",         alt:"Tüketim takibi"},
+  {ad:"Ayarlar",             alt:"Kullanıcı · yetki"}
+];
+
+const menuGrid = document.getElementById("menuGrid");
+MODULLER.forEach(function(m){
+  const b = document.createElement("button");
+  b.className = "mod" + (m.aktif ? " active" : "");
+  b.innerHTML = "<b>" + m.ad + "</b><span>" + m.alt + "</span>";
+  b.onclick = function(){ acModul(m); };
+  menuGrid.appendChild(b);
+});
+
+/* ---------- 2. localStorage: HAM GÖZ SATIRLARI ---------- */
+const KEY_HAM = "teksut_sut_ham_v1";
+
+function yukle(){
+  try { return JSON.parse(localStorage.getItem(KEY_HAM) || "[]"); }
+  catch(e){ return []; }
+}
+function kaydet(ham){
+  localStorage.setItem(KEY_HAM, JSON.stringify(ham));
+}
+
+/* ---------- 3. YARDIMCILAR ---------- */
+function norm(s){
+  return String(s == null ? "" : s)
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g,"i").replace(/İ/g,"i")
+    .replace(/ş/g,"s").replace(/ğ/g,"g")
+    .replace(/ü/g,"u").replace(/ö/g,"o").replace(/ç/g,"c")
+    .replace(/[^a-z0-9]/g,"");
+}
+function sayi(v){
+  if (v === null || v === undefined || v === "") return NaN;
+  if (typeof v === "number") return isFinite(v) ? v : NaN;
+  let s = String(v).trim().replace(/\s/g,"");
+  if (s === "") return NaN;
+  if (s.indexOf(",") > -1) s = s.replace(/\./g,"").replace(",",".");
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : n;
+}
+function pad2(n){ return (n < 10 ? "0" : "") + n; }
+
+function tarihYmd(v){
+  if (v === null || v === undefined || v === "") return "";
+  if (v instanceof Date && !isNaN(v)) return v.getFullYear() + "-" + pad2(v.getMonth()+1) + "-" + pad2(v.getDate());
+  if (typeof v === "number"){                       // Excel seri no
+    const d = new Date(Date.UTC(1899,11,30) + v*86400000);
+    return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth()+1) + "-" + pad2(d.getUTCDate());
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);                         // 2026-10-09
+  if (m) return m[1] + "-" + pad2(+m[2]) + "-" + pad2(+m[3]);
+  m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);                  // 09.10.2026
+  if (m){
+    let y = +m[3]; if (y < 100) y += 2000;
+    return y + "-" + pad2(+m[2]) + "-" + pad2(+m[1]);
+  }
+  const d = new Date(s);
+  if (!isNaN(d)) return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate());
+  return "";
+}
+function saatHm(v){
+  if (v === null || v === undefined || v === "") return "";
+  if (v instanceof Date && !isNaN(v)) return pad2(v.getHours()) + ":" + pad2(v.getMinutes());
+  if (typeof v === "number"){                       // günün kesri
+    const t = Math.round(v * 24 * 60);
+    return pad2(Math.floor(t/60) % 24) + ":" + pad2(t % 60);
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (m) return pad2(+m[1]) + ":" + m[2];
+  const d = new Date(s);
+  if (!isNaN(d)) return pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  return s;
+}
+function isoHafta(ymd){
+  if (!ymd) return {y:0, w:0};
+  const p = ymd.split("-");
+  const t = new Date(Date.UTC(+p[0], +p[1]-1, +p[2]));
+  const gun = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - gun);
+  const yilBasi = new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  const w = Math.ceil((((t - yilBasi)/86400000) + 1)/7);
+  return {y:t.getUTCFullYear(), w:w};
+}
+
+/* Excel başlık adları — esnek eşleştirme */
+function bul(satir, adaylar){
+  const anahtarlar = Object.keys(satir);
+  for (let i=0;i<anahtarlar.length;i++){
+    if (adaylar.indexOf(norm(anahtarlar[i])) > -1) return satir[anahtarlar[i]];
+  }
+  return undefined;
+}
+
+const ALAN = {
+  arac:      ["arac","aracno","aracadi"],
+  tarih:     ["tarih"],
+  saat:      ["saat"],
+  plaka:     ["plaka","plakano","plakano"],
+  kantar:    ["kantar","kantarkg","kantarton","tankerkantar","tankerkantardegeri"],
+  sutCinsi:  ["sutcinsi","sutcins"],
+  seferAdi:  ["seferadi","sefer","seferno"],
+  muhur:     ["muhur","muhurno","muhurn","muhur n"],
+  gozNo:     ["gozno","goz","gozn","gozno"],
+  kullanici: ["kullanici"],
+  aciklama:  ["aciklama","aciklamalar"]
+};
+/* Ağırlıklı ortalaması alınacak analizler */
+const ANALIZ = {
+  "Sıcaklık":        ["sicaklik","sicaklikc","sicaklik1"],
+  "pH":              ["ph"],
+  "Sh":              ["sh"],
+  "Yağ":             ["yag","yag1","yag2"],
+  "Klasik Yöntem":   ["klasikyontem","klasikyontem","klasikyontem1"],
+  "Protein":         ["protein","protein1"],
+  "Laktoz":          ["laktoz","laktoz1"],
+  "TKM":             ["tkm","tkm1"],
+  "YKM":             ["ykm","ykm1"],
+  "Donma Noktası":   ["donmanokta","donmanoktasi","donmanoktas","donmanokta1"],
+  "Somatik":         ["somatik","somatikhucre","somatik1"],
+  "Yoğunluk":        ["yogunluk","yogunluk1"],
+  "Su":              ["su","su1"],
+  "Laktam SKT":      ["laktam","laktamskt","laktam1"],
+  "Alkol":           ["alkol","alkol1"],
+  "Koku":            ["koku","koku1"],
+  "Test":            ["test","test1"]
+};
+const ANALIZ_ADLARI = Object.keys(ANALIZ);
+
+/* ---------- 4. SATIR DÖNÜŞTÜRME ---------- */
+function satirCevir(r){
+  const ymd = tarihYmd(bul(r, ALAN.tarih));
+  const iso = isoHafta(ymd);
+  const o = {
+    arac:      String(bul(r, ALAN.arac)      == null ? "" : bul(r, ALAN.arac)).trim(),
+    tarih:     ymd,
+    saat:      saatHm(bul(r, ALAN.saat)),
+    plaka:     String(bul(r, ALAN.plaka)     == null ? "" : bul(r, ALAN.plaka)).trim().toUpperCase(),
+    kantar:    sayi(bul(r, ALAN.kantar)),
+    sutCinsi:  String(bul(r, ALAN.sutCinsi)  == null ? "" : bul(r, ALAN.sutCinsi)).trim(),
+    seferAdi:  String(bul(r, ALAN.seferAdi)  == null ? "" : bul(r, ALAN.seferAdi)).trim(),
+    muhur:     String(bul(r, ALAN.muhur)     == null ? "" : bul(r, ALAN.muhur)).trim(),
+    gozNo:     String(bul(r, ALAN.gozNo)     == null ? "" : bul(r, ALAN.gozNo)).trim(),
+    kullanici: String(bul(r, ALAN.kullanici) == null ? "" : bul(r, ALAN.kullanici)).trim(),
+    aciklama:  String(bul(r, ALAN.aciklama)  == null ? "" : bul(r, ALAN.aciklama)).trim(),
+    yil:       ymd ? ymd.slice(0,4) : "",
+    ay:        ymd ? ymd.slice(5,7) : "",
+    isoYil:    iso.y,
+    isoHafta:  iso.w
+  };
+  ANALIZ_ADLARI.forEach(function(ad){
+    const v = sayi(bul(r, ANALIZ[ad]));
+    o[ad] = isNaN(v) ? null : v;
+  });
+  return o;
+}
+
+/* Göz satırı anahtarı — aynı göz tekrar gelirse güncellenir */
+function gozKey(g){
+  return [g.plaka,g.tarih,g.saat,g.seferAdi,g.muhur,g.gozNo].join("|");
+}
+
+/* ---------- 5. SEFER BİRLEŞTİRME ---------- *
+ * Miktar  : kantar değeri SADECE BİR KEZ (sefer başına)
+ * Analiz  : göz değerlerinin ağırlıklı ortalaması
+ *           ağırlık = kantar / göz sayısı  (gözler eşit ağırlıklı)
+ */
+function seferKey(s){
+  return [s.plaka,s.tarih,s.saat,s.seferAdi,s.muhur].join("|");
+}
+function seferBirlestir(hamGözler){
+  const gruplar = new Map();
+  hamGözler.forEach(function(g){
+    const k = seferKey(g);
+    if (!gruplar.has(k)) gruplar.set(k, []);
+    gruplar.get(k).push(g);
+  });
 
   const sonuc = [];
-
-  for (const gozler of gruplar.values()) {
+  gruplar.forEach(function(gozler){
     const ilk = gozler[0];
-    const kayit = {};
+    const kayit = {
+      tarih: ilk.tarih, saat: ilk.saat, plaka: ilk.plaka, arac: ilk.arac,
+      sutCinsi: ilk.sutCinsi, seferAdi: ilk.seferAdi, muhur: ilk.muhur,
+      kullanici: ilk.kullanici, aciklama: ilk.aciklama,
+      yil: ilk.yil, ay: ilk.ay, isoYil: ilk.isoYil, isoHafta: ilk.isoHafta,
+      gozSayisi: gozler.length
+    };
 
-    // Sefer sabit bilgileri — ilk satırdan
-    for (const kolon of ["Tarih", "Saat", "Plaka", "Araç", "Süt Cinsi", "Sefer Adı", "Mühür No", "Kullanıcı"]) {
-      kayit[kolon] = ilk[kolon];
-    }
+    // MİKTAR: tanker kantar değeri tek kez
+    const kantar = ilk.kantar;
+    kayit.miktar = (kantar === null || isNaN(kantar)) ? 0 : kantar;
 
-    // MİKTAR: tanker kantar değeri SADECE BİR KEZ alınır
-    kayit["Miktar"] = sayi(ilk["Kantar"]);
-    kayit["Göz Sayısı"] = gozler.length;
-
-    // Göz ağırlıkları
-    const agirliklar = gozler.map(function (g) {
-      const m = sayi(g["Göz Miktarı"]);
-      return isNaN(m) ? 0 : m;
-    });
-    const agirlikToplam = agirliklar.reduce(function (a, b) { return a + b; }, 0);
+    // Göz ağırlığı (eşit): kantar / göz sayısı
+    const w = (kayit.miktar > 0 && gozler.length > 0) ? kayit.miktar / gozler.length : 0;
 
     // ANALİZLER: ağırlıklı ortalama
-    for (const kolon of ANALIZ) {
+    ANALIZ_ADLARI.forEach(function(ad){
       let pay = 0, payda = 0;
-
-      gozler.forEach(function (g, i) {
-        const deger = sayi(g[kolon]);
-        if (isNaN(deger)) return;
-        // Göz miktarı yoksa eşit ağırlık kullanılır
-        const w = agirlikToplam > 0 ? agirliklar[i] : 1;
-        pay += deger * w;
-        payda += w;
+      gozler.forEach(function(g){
+        const d = g[ad];
+        if (d === null || d === undefined || isNaN(d)) return;  // boş göz katılmaz
+        const wi = (w > 0) ? w : 1;
+        pay  += d * wi;
+        payda += wi;
       });
-
-      kayit[kolon] = payda > 0 ? +(pay / payda).toFixed(3) : null;
-    }
+      kayit[ad] = payda > 0 ? +(pay / payda).toFixed(3) : null;
+    });
 
     sonuc.push(kayit);
-  }
+  });
 
+  sonuc.sort(function(a,b){
+    const x = a.tarih + a.saat, y = b.tarih + b.saat;
+    return x < y ? 1 : (x > y ? -1 : 0);
+  });
   return sonuc;
 }
+
+/* ---------- 6. EXCEL OKUMA ---------- */
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("file");
+
+drop.onclick = function(){ fileInput.click(); };
+drop.addEventListener("dragover", function(e){ e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", function(){ drop.classList.remove("over"); });
+drop.addEventListener("drop", function(e){
+  e.preventDefault(); drop.classList.remove("over");
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) dosyaOku(e.dataTransfer.files[0]);
+});
+fileInput.onchange = function(){ if (fileInput.files[0]) dosyaOku(fileInput.files[0]); };
+
+function dosyaOku(f){
+  const rd = new FileReader();
+  rd.onload = function(ev){
+    let wb;
+    try { wb = XLSX.read(ev.target.result, {type:"array", cellDates:true}); }
+    catch(err){ toast("Dosya okunamadı: " + err.message); return; }
+
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const ham = XLSX.utils.sheet_to_json(ws, {defval:"", raw:true});
+    if (!ham.length){ toast("Dosyada satır bulunamadı."); return; }
+
+    const yeni = ham
+      .map(satirCevir)
+      .filter(function(g){ return g.plaka || g.tarih || !isNaN(g.kantar); });
+
+    if (!yeni.length){ toast("Tanınan satır yok. Başlık adlarını kontrol edin."); return; }
+
+    // Kalıcı veriye ekle — aynı göz varsa güncelle, kopya oluşturma
+    const mevcut = yukle();
+    const index = new Map();
+    mevcut.forEach(function(g,i){ index.set(gozKey(g), i); });
+
+    let eklenen = 0, guncellenen = 0;
+    yeni.forEach(function(g){
+      const k = gozKey(g);
+      if (index.has(k)){ mevcut[index.get(k)] = g; guncellenen++; }
+      else { mevcut.push(g); index.set(k, mevcut.length-1); eklenen++; }
+    });
+
+    kaydet(mevcut);
+    ciz();
+    toast(f.name + " · " + eklenen + " yeni göz, " + guncellenen + " güncellendi (toplam " + mevcut.length + " göz).");
+  };
+  rd.readAsArrayBuffer(f);
+}
+
+/* ---------- 7. EKRANA ÇİZİM ---------- */
+let SEFERLER = [];
+let RAPOR_TIP = "yil";
+
+function ciz(){
+  const ham = yukle();
+  SEFERLER = seferBirlestir(ham);
+  kpiCiz();
+  tabloCiz();
+  raporCiz();
+  document.getElementById("storeInfo").textContent =
+    "Kayıtlı ham göz satırı: " + ham.length + " · sefer: " + SEFERLER.length +
+    " · son güncelleme: " + new Date().toLocaleString("tr-TR");
+}
+
+function f(n, h){
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return Number(n).toLocaleString("tr-TR", {minimumFractionDigits:(h==null?2:h), maximumFractionDigits:2});
+}
+function agirlikliOrt(seferler, kolon){
+  let pay = 0, payda = 0;
+  seferler.forEach(function(s){
+    const d = s[kolon];
+    if (d === null || d === undefined || isNaN(d)) return;
+    const w = (s.miktar > 0) ? s.miktar : 1;
+    pay += d * w; payda += w;
+  });
+  return payda > 0 ? pay/payda : null;
+}
+
+function kpiCiz(){
+  const el = document.getElementById("kpis");
+  const ton = SEFERLER.reduce(function(t,s){ return t + (s.miktar||0); }, 0);
+  const goz = SEFERLER.reduce(function(t,s){ return t + (s.gozSayisi||0); }, 0);
+  const kartlar = [
+    ["Sefer", SEFERLER.length.toLocaleString("tr-TR")],
+    ["Göz Satırı", goz.toLocaleString("tr-TR")],
+    ["Toplam Miktar (kg)", f(ton,0)],
+    ["Toplam Miktar (ton)", f(ton/1000,2)],
+    ["Ort. Yağ (ağr.)", f(agirlikliOrt(SEFERLER,"Yağ"),3)],
+    ["Ort. Protein (ağr.)", f(agirlikliOrt(SEFERLER,"Protein"),3)],
+    ["Ort. Laktoz (ağr.)", f(agirlikliOrt(SEFERLER,"Laktoz"),3)],
+    ["Ort. TKM (ağr.)", f(agirlikliOrt(SEFERLER,"TKM"),3)]
+  ];
+  el.innerHTML = kartlar.map(function(k){
+    return '<div class="kpi"><b>' + k[1] + '</b><span>' + k[0] + '</span></div>';
+  }).join("");
+}
+
+const KOLONLAR = [
+  ["tarih","Tarih"], ["saat","Saat"], ["plaka","Plaka"], ["arac","Araç"],
+  ["seferAdi","Sefer Adı"], ["muhur","Mühür No"], ["gozSayisi","Göz"],
+  ["miktar","Miktar (kg)"]
+].concat(ANALIZ_ADLARI.map(function(a){ return [a, a]; }))
+ .concat([["kullanici","Kullanıcı"], ["aciklama","Açıklama"]]);
+
+function tabloCiz(){
+  const ara = norm(document.getElementById("ara").value);
+  let liste = SEFERLER;
+  if (ara){
+    liste = SEFERLER.filter(function(s){
+      return norm(s.plaka).indexOf(ara) > -1 || norm(s.seferAdi).indexOf(ara) > -1 || norm(s.muhur).indexOf(ara) > -1;
+    });
+  }
+  let h = "<thead><tr>" + KOLONLAR.map(function(k){ return "<th>" + k[1] + "</th>"; }).join("") + "</tr></thead><tbody>";
+  if (!liste.length){
+    h += '<tr><td colspan="' + KOLONLAR.length + '" style="text-align:center;color:#6b7280;padding:22px">Kayıt yok. Günlük Excel dosyanızı yükleyin.</td></tr>';
+  } else {
+    liste.forEach(function(s){
+      h += "<tr>" + KOLONLAR.map(function(k){
+        const v = s[k[0]];
+        return "<td>" + (v === null || v === undefined || v === "" ? "—" : f(v)) + "</td>";
+      }).join("") + "</tr>";
+    });
+  }
+  h += "</tbody>";
+  document.getElementById("tblSefer").innerHTML = h;
+}
+document.getElementById("ara").oninput = tabloCiz;
+
+function grupla(seferler, tip){
+  const m = new Map();
+  seferler.forEach(function(s){
+    let k;
+    if (tip === "yil") k = s.yil || "—";
+    else if (tip === "ay") k = s.yil ? (s.yil + "-" + pad2(+s.ay)) : "—";
+    else k = s.isoYil ? (s.isoYil + "-W" + pad2(s.isoHafta)) : "—";
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(s);
+  });
+  const dizi = [];
+  m.forEach(function(liste, k){ dizi.push({anahtar:k, liste:liste}); });
+  dizi.sort(function(a,b){ return a.anahtar < b.anahtar ? 1 : -1; });
+  return dizi;
+}
+
+function raporCiz(){
+  const gruplar = grupla(SEFERLER, RAPOR_TIP);
+  const ekAnalizler = ["Yağ","Protein","Laktoz","TKM","pH"];
+  let h = "<thead><tr><th>Dönem</th><th>Sefer</th><th>Göz</th><th>Toplam (kg)</th><th>Toplam (ton)</th>"
+        + ekAnalizler.map(function(a){ return "<th>Ort. " + a + "</th>"; }).join("")
+        + "</tr></thead><tbody>";
+  if (!gruplar.length){
+    h += '<tr><td colspan="' + (5 + ekAnalizler.length) + '" style="text-align:center;color:#6b7280;padding:22px">Veri yok.</td></tr>';
+  } else {
+    gruplar.forEach(function(g){
+      const ton = g.liste.reduce(function(t,s){ return t + (s.miktar||0); }, 0);
+      const goz = g.liste.reduce(function(t,s){ return t + (s.gozSayisi||0); }, 0);
+      h += "<tr><td><b>" + g.anahtar + "</b></td><td>" + g.liste.length + "</td><td>" + goz + "</td><td>" + f(ton,0) + "</td><td>" + f(ton/1000,2) + "</td>"
+        + ekAnalizler.map(function(a){ return "<td>" + f(agirlikliOrt(g.liste,a),3) + "</td>"; }).join("")
+        + "</tr>";
+    });
+  }
+  h += "</tbody>";
+  document.getElementById("tblRapor").innerHTML = h;
+}
+
+document.querySelectorAll(".tab").forEach(function(t){
+  t.onclick = function(){
+    document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("on"); });
+    t.classList.add("on");
+    RAPOR_TIP = t.getAttribute("data-tip");
+    raporCiz();
+  };
+});
+
+/* ---------- 8. CSV ÇIKTILARI ---------- */
+function csvIndir(dosyaAdi, basliklar, satirlar){
+  const sep = ";";
+  function hucre(v){
+    let s = (v === null || v === undefined) ? "" : String(v);
+    s = s.replace(/"/g,'""');
+    if (s.indexOf(sep) > -1 || s.indexOf("\n") > -1 || s.indexOf('"') > -1) s = '"' + s + '"';
+    return s;
+  }
+  const govde = [basliklar.join(sep)].concat(satirlar.map(function(r){ return r.map(hucre).join(sep); })).join("\r\n");
+  const blob = new Blob(["\uFEFF" + govde], {type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = dosyaAdi;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+document.getElementById("btnCsvRapor").onclick = function(){
+  const gruplar = grupla(SEFERLER, RAPOR_TIP);
+  const ek = ["Yağ","Protein","Laktoz","TKM","pH"];
+  const bas = ["Donem","Sefer","Goz","Toplam_kg","Toplam_ton"].concat(ek.map(function(a){ return "Ort_" + a; }));
+  const sat = gruplar.map(function(g){
+    const ton = g.liste.reduce(function(t,s){ return t + (s.miktar||0); }, 0);
+    const goz = g.liste.reduce(function(t,s){ return t + (s.gozSayisi||0); }, 0);
+    return [g.anahtar, g.liste.length, goz, ton, +(ton/1000).toFixed(3)]
+      .concat(ek.map(function(a){ const v = agirlikliOrt(g.liste,a); return v === null ? "" : +v.toFixed(3); }));
+  });
+  csvIndir("teksut_rapor_" + RAPOR_TIP + "_" + new Date().toISOString().slice(0,10) + ".csv", bas, sat);
+};
+
+document.getElementById("btnYedek").onclick = function(){
+  const ham = yukle();
+  const bas = ["plaka","tarih","saat","arac","kantar","sutCinsi","seferAdi","muhur","gozNo","kullanici"]
+              .concat(ANALIZ_ADLARI).concat(["aciklama"]);
+  const sat = ham.map(function(g){
+    return bas.map(function(k){
+      const v = g[k];
+      if (v === null || v === undefined) return "";
+      if (Array.isArray(v) || typeof v === "object") return "";
+      return v;
+    });
+  });
+  csvIndir("teksut_sut_alim_ham_" + new Date().toISOString().slice(0,10) + ".csv", bas, sat);
+};
+
+document.getElementById("btnTemizle").onclick = function(){
+  if (!confirm("Saklanan tüm süt alım kayıtları silinecek. Emin misiniz?")) return;
+  localStorage.removeItem(KEY_HAM);
+  ciz();
+  toast("Tüm kayıtlar silindi.");
+};
+
+document.getElementById("btnOzet").onclick = function(){ ciz(); toast("Özetler yenilendi."); };
+
+/* ---------- 9. MODÜL GEÇİŞLERİ ---------- */
+function acModul(m){
+  document.getElementById("menu").classList.add("hidden");
+  document.getElementById("panel").classList.remove("hidden");
+  if (m.aktif){
+    document.getElementById("p-sut").classList.remove("hidden");
+    document.getElementById("p-bos").classList.add("hidden");
+    ciz();
+  } else {
+    document.getElementById("p-sut").classList.add("hidden");
+    document.getElementById("p-bos").classList.remove("hidden");
+    document.getElementById("phTitle").textContent = m.ad;
+  }
+  window.scrollTo(0,0);
+}
+function anaMenu(){
+  document.getElementById("panel").classList.add("hidden");
+  document.getElementById("p-sut").classList.add("hidden");
+  document.getElementById("p-bos").classList.add("hidden");
+  document.getElementById("menu").classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+document.getElementById("btnAna").onclick = anaMenu;
+document.getElementById("btnGeri").onclick = anaMenu;
+
+/* ---------- 10. BİLDİRİM ---------- */
+let toastT = null;
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(function(){ el.classList.remove("show"); }, 5000);
+}
+</script>
+</body>
+</html>
